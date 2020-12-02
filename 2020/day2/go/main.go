@@ -15,15 +15,15 @@ func main() {
 		log.Fatalf("unable to open file: %v", err)
 	}
 
-	part1(data)
+	run(data)
 }
 
-func part1(data []byte) {
+func run(data []byte) {
 	lines := bytes.Split(data, []byte{'\n'})
 
 	validPasswords := 0
 	for _, line := range lines {
-		if isValid(line) {
+		if isValidPart2(line) {
 			fmt.Printf("VALID LINE: %s\n", line)
 			validPasswords += 1
 		} else {
@@ -43,7 +43,56 @@ const (
 	state_Word
 )
 
-func isValid(line []byte) bool {
+func isValidPart2(line []byte) bool {
+
+	var existPosition, notExistPosition int
+	var letter byte
+
+	s := state_FirstNumber
+
+	start := 0
+	for i, c := range line {
+		switch s {
+		case state_FirstNumber:
+			if c == '-' {
+				s = state_Dash
+				existPosition = convertToInt(line[start:i])
+			}
+		case state_Dash:
+			if c >= '0' && c <= '9' {
+				s = state_SecondNumber
+				start = i
+			}
+		case state_SecondNumber:
+			if c == ' ' {
+				s = state_Letter
+				notExistPosition = convertToInt(line[start:i])
+			}
+		case state_Letter:
+			if c >= 'a' && c <= 'z' {
+				s = state_Word
+				letter = c
+			}
+		case state_Word:
+			if c >= 'a' && c <= 'z' {
+				// validate password
+				password := line[i:]
+				if len(password) < notExistPosition {
+					return false
+				}
+
+				if password[existPosition-1] == letter {
+					return password[notExistPosition-1] != letter
+				} else {
+					return password[notExistPosition-1] == letter
+				}
+			}
+		}
+	}
+	return false
+}
+
+func isValidPart1(line []byte) bool {
 
 	var min, max int
 	var letter byte
