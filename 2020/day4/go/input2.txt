@@ -1,0 +1,4 @@
+hcl:5d90f0 cid:270 ecl:#66dc9c hgt:62cm byr:1945 pid:63201172 eyr:2026
+
+ecl:amb byr:1943 iyr:2014 eyr:2028
+pid:333051831
