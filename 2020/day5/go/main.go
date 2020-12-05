@@ -8,6 +8,7 @@ import (
 )
 
 func main() {
+
 	data, err := ioutil.ReadFile("./input.txt")
 	if err != nil {
 		log.Fatalf("unable to open file: %v", err)
@@ -46,6 +47,24 @@ func run(data []byte) {
 }
 
 func boardingPassSeat(boardingPass []byte) (int, int) {
+	var row int = 0
+	for i, c := range boardingPass[0:7] {
+		if c == 'B' {
+			row = row | (1 << (6 - i))
+		}
+	}
+
+	var col int = 0
+	for i, c := range boardingPass[7:] {
+		if c == 'R' {
+			col = col | (1 << (2 - i))
+		}
+	}
+
+	return row, col
+}
+
+func boardingPassSeatYuck(boardingPass []byte) (int, int) {
 	rows := 7
 	seats := 3
 
