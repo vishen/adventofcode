@@ -112,13 +112,14 @@ func (p *parser) run() {
 				break
 			}
 			for parent, _ := range parents {
+				seen[parent] = true
 				for pBag, _ := range childToParents[parent] {
 					parents[pBag] = true
 				}
 				delete(parents, parent)
 			}
 		}
-		fmt.Println(len(seen), seen)
+		fmt.Println(len(seen), len(bags))
 	}
 }
 
