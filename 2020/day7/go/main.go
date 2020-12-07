@@ -29,6 +29,8 @@ type bag struct {
 	name   string
 	number int
 
+	total    int
+	totalSet bool
 	contains []bag
 }
 
@@ -103,8 +105,8 @@ func (p *parser) run() {
 		p.i++
 	}
 
+	// Find all parents of "shiny gold"
 	{
-
 		seen := map[string]bool{}
 		parents := childToParents["shiny gold"]
 		for {
@@ -121,6 +123,9 @@ func (p *parser) run() {
 		}
 		fmt.Println(len(seen), len(bags))
 	}
+
+	total := totalForBag(bags, bags["shiny gold"])
+	fmt.Println(total)
 }
 
 func (p *parser) isWord(word string) bool {
@@ -129,4 +134,20 @@ func (p *parser) isWord(word string) bool {
 
 func (p *parser) eatWord(word string) {
 	p.i += len(word)
+}
+
+func totalForBag(bags map[string]bag, b bag) int {
+	// TODO: super inefficient. Should cache the total
+	// for a bag on the bag or similar.
+	if len(b.contains) == 0 {
+		return 0
+	}
+	total := 0
+	for _, c := range b.contains {
+		b := bags[c.name]
+		t := totalForBag(bags, b) * c.number
+		total += t
+		total += c.number
+	}
+	return total
 }
