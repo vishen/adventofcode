@@ -26,12 +26,39 @@ const (
 )
 
 type bag struct {
-	name   string
-	number int
+	name string
 
-	total    int
-	totalSet bool
-	contains []bag
+	parents  []*bag
+	children []*bag
+	numbers  []int
+}
+
+func newBag(name string) *bag {
+	return &bag{
+		name: name,
+	}
+}
+
+type bags map[string]*bag
+
+func (b bags) Add(bagName string) {
+	if _, ok := b[bagName]; !ok {
+		b[bagName] = newBag(bagName)
+	}
+}
+
+func (b bags) AddChild(bagName string, childBagName string, childBagNumber int) {
+	parent := b[bagName]
+
+	child, ok := b[childBagName]
+	if !ok {
+		child = newBag(childBagName)
+		b[child.name] = child
+	}
+	child.parents = append(child.parents, parent)
+
+	parent.children = append(parent.children, child)
+	parent.numbers = append(parent.numbers, childBagNumber)
 }
 
 type parser struct {
@@ -49,11 +76,10 @@ func NewParser(data []byte) *parser {
 }
 
 func (p *parser) run() {
-	bags := map[string]bag{}
-	childToParents := map[string]map[string]bool{}
+	bags := bags{}
 
-	currentBag := bag{}
-	childBag := bag{}
+	var currentBagName, childBagName string
+	var childBagNumber int
 
 	start := -1
 	for {
@@ -67,22 +93,19 @@ func (p *parser) run() {
 				start = p.i
 			}
 			if p.isWord(" bags") {
-				currentBag.name = string(p.data[start:p.i])
+				currentBagName = string(p.data[start:p.i])
+				bags.Add(currentBagName)
 				start = -1
 				p.eatWord(" bags contain")
-				childBag = bag{}
 				p.s = state_CHILD_NUMBER
 			}
 		case state_CHILD_NUMBER:
 			if c == '.' {
 				p.s = state_NAME
-				bags[currentBag.name] = currentBag
-				currentBag = bag{}
-				childBag = bag{}
 				start = -1
 			}
 			if c >= '0' && c <= '9' {
-				childBag.number = int(c - '0')
+				childBagNumber = int(c - '0')
 				p.s = state_CHILD_NAME
 				start = -1
 			}
@@ -91,14 +114,9 @@ func (p *parser) run() {
 				start = p.i
 			}
 			if p.isWord(" bag") {
-				childBag.name = string(p.data[start:p.i])
-				if _, ok := childToParents[childBag.name]; !ok {
-					childToParents[childBag.name] = map[string]bool{}
-				}
-				childToParents[childBag.name][currentBag.name] = true
+				childBagName = string(p.data[start:p.i])
 				start = -1
-				currentBag.contains = append(currentBag.contains, childBag)
-				childBag = bag{}
+				bags.AddChild(currentBagName, childBagName, childBagNumber)
 				p.s = state_CHILD_NUMBER
 			}
 		}
@@ -106,26 +124,10 @@ func (p *parser) run() {
 	}
 
 	// Find all parents of "shiny gold"
-	{
-		seen := map[string]bool{}
-		parents := childToParents["shiny gold"]
-		for {
-			if len(parents) == 0 {
-				break
-			}
-			for parent, _ := range parents {
-				seen[parent] = true
-				for pBag, _ := range childToParents[parent] {
-					parents[pBag] = true
-				}
-				delete(parents, parent)
-			}
-		}
-		fmt.Println(len(seen), len(bags))
-	}
+	fmt.Println(numberOfParents(bags["shiny gold"]))
 
-	total := totalForBag(bags, bags["shiny gold"])
-	fmt.Println(total)
+	// Find number of child bags of "shiny gold"
+	fmt.Println(totalForBag(bags["shiny gold"]))
 }
 
 func (p *parser) isWord(word string) bool {
@@ -136,18 +138,32 @@ func (p *parser) eatWord(word string) {
 	p.i += len(word)
 }
 
-func totalForBag(bags map[string]bag, b bag) int {
-	// TODO: super inefficient. Should cache the total
-	// for a bag on the bag or similar.
-	if len(b.contains) == 0 {
+func numberOfParents(b *bag) int {
+	seen := map[string]bool{}
+	parents := b.parents
+	for {
+		if len(parents) == 0 {
+			break
+		}
+		nextParents := []*bag{}
+		for _, p := range parents {
+			seen[p.name] = true
+			nextParents = append(nextParents, p.parents...)
+		}
+		parents = nextParents
+	}
+	return len(seen)
+}
+
+func totalForBag(b *bag) int {
+	if len(b.children) == 0 {
 		return 0
 	}
 	total := 0
-	for _, c := range b.contains {
-		b := bags[c.name]
-		t := totalForBag(bags, b) * c.number
-		total += t
-		total += c.number
+	for i := range b.children {
+		num := b.numbers[i]
+		t := totalForBag(b.children[i]) * num
+		total += t + num
 	}
 	return total
 }
