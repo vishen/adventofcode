@@ -15,7 +15,9 @@ func main() {
 
 	p := NewParser(data)
 	insts := p.parse()
-	// emulator(insts)
+	fmt.Println("part1")
+	fmt.Println("emulator success:", emulator(insts))
+	fmt.Println("part2")
 	bruteForceFix(insts)
 }
 
@@ -110,14 +112,16 @@ func emulator(insts []inst) bool {
 		}
 		pc += 1
 	}
+	fmt.Println(acc)
 	return true
 }
 
 func bruteForceFix(insts []inst) {
-	for i := len(insts) - 1; i >= 0; i-- {
+	for i := len(insts) - 1; i > 0; i-- {
+		newInsts := make([]inst, len(insts))
+		copy(newInsts, insts)
 		// Change just the last instruction and run again
 		// to see if we can fix the instruction that was wrong
-		newInsts := insts[:]
 		if newInsts[i].opcode == "acc" {
 			// Can ignore accumulator opcodes for now
 			continue
@@ -125,7 +129,7 @@ func bruteForceFix(insts []inst) {
 		newInsts[i] = fixInst(newInsts[i])
 
 		if emulator(newInsts) {
-			fmt.Println("found bad instruction:", insts[i])
+			fmt.Println("found bad instruction:", i, insts[i])
 			return
 		}
 	}
