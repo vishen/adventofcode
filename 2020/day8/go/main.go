@@ -15,7 +15,8 @@ func main() {
 
 	p := NewParser(data)
 	insts := p.parse()
-	emulator(insts)
+	// emulator(insts)
+	bruteForceFix(insts)
 }
 
 type state int
@@ -77,7 +78,7 @@ type inst struct {
 	value  string
 }
 
-func emulator(insts []inst) {
+func emulator(insts []inst) bool {
 	instRan := make(map[int]bool, len(insts))
 	pc := 0
 	acc := 0
@@ -88,7 +89,7 @@ func emulator(insts []inst) {
 		i := insts[pc]
 		if _, ok := instRan[pc]; ok {
 			fmt.Println(acc)
-			return
+			return false
 		}
 		instRan[pc] = true
 		v, _ := strconv.Atoi(i.value[1:])
@@ -109,4 +110,34 @@ func emulator(insts []inst) {
 		}
 		pc += 1
 	}
+	return true
+}
+
+func bruteForceFix(insts []inst) {
+	for i := len(insts) - 1; i >= 0; i-- {
+		// Change just the last instruction and run again
+		// to see if we can fix the instruction that was wrong
+		newInsts := insts[:]
+		if newInsts[i].opcode == "acc" {
+			// Can ignore accumulator opcodes for now
+			continue
+		}
+		newInsts[i] = fixInst(newInsts[i])
+
+		if emulator(newInsts) {
+			fmt.Println("found bad instruction:", insts[i])
+			return
+		}
+	}
+	fmt.Println("finished without success")
+}
+
+func fixInst(i inst) inst {
+	switch i.opcode {
+	case "jmp":
+		i.opcode = "nop"
+	case "nop":
+		i.opcode = "jmp"
+	}
+	return i
 }
