@@ -39,9 +39,7 @@ func run(data []byte) {
 	}
 
 	for i, n1 := range numbers {
-		sum := n1
-		min := n1
-		max := n1
+		sum, min, max := n1, n1, n1
 		for j, n2 := range numbers[i+1:] {
 			sum += n2
 			if n2 > max {
