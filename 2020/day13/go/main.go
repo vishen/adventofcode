@@ -8,7 +8,7 @@ import (
 )
 
 func main() {
-	data, err := ioutil.ReadFile("./input.txt")
+	data, err := ioutil.ReadFile("./input2.txt")
 	if err != nil {
 		log.Fatalf("unable to open file: %v", err)
 	}
@@ -81,10 +81,13 @@ func run(data []byte) {
 	t := 0
 	mod := 1
 	for bus, pos := range busPos {
+		fmt.Printf("bus=%d pos=%d mod=%d t=%d\n", bus, pos, mod, t)
 		for (t+pos)%bus != 0 {
 			t += mod
+			fmt.Printf("inc t: %d\n", t)
 		}
 		mod *= bus
+		fmt.Printf("mod: %d\n", mod)
 	}
 	fmt.Println(mod, t)
 }
