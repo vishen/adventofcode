@@ -9,6 +9,7 @@ import (
 )
 
 func main() {
+
 	data, err := ioutil.ReadFile("./input.txt")
 	if err != nil {
 		log.Fatalf("unable to open file: %v", err)
@@ -59,10 +60,46 @@ func run(data []byte) {
 	fmt.Println(numbers)
 	fmt.Println(len(numbers), diffCount)
 	fmt.Println(diffCount[1] * (diffCount[3] + 1))
-	fmt.Println(nextNumbers)
 
-	total := paths(nextNumbers, 0)
+	// Part 2
+	// Naive approach with recursive and memoization
+	// total := paths(nextNumbers, 0)
+
+	numbers = append(numbers, 0)
+	fmt.Println(numbers)
+
+	total := 1
+	prevNum := numbers[0]
+	c := 0
+	for _, n := range numbers[1:] {
+		if n-prevNum == 1 {
+			c += 1
+		} else {
+			// SUPER HACKY
+			if n == 0 {
+				c += 1
+			}
+			if c > 2 {
+				x := (pow(2, c-1) - pow(2, c-3)) + 1
+				fmt.Println(n, c, x)
+				total *= x
+			} else if c > 0 {
+				fmt.Println(n, c, c)
+				total *= c
+			}
+			c = 0
+		}
+		prevNum = n
+	}
 	fmt.Println(total)
+}
+
+func pow(base, times int) int {
+	total := 1
+	for i := 0; i < times; i++ {
+		total *= base
+	}
+	return total
 }
 
 var seen map[string]int
