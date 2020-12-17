@@ -7,7 +7,7 @@ func main() {
 	turns := 2020
 
 	input = []int{1, 3, 2}
-	turns = 2020
+	turns = 100
 
 	lastSpoken := map[int]int{}
 	last := 0
