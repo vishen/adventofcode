@@ -22,9 +22,33 @@ func run(data []byte) {
 		if len(line) == 0 {
 			continue
 		}
-		total := (&parser{data: line}).evaluate()
-		fmt.Printf("%s = %d\n", line, total)
+
+		// Add paratheses around addition to force precendence
+		newLine := make([]byte, len(line))
+		copy(newLine, line)
+
+		start := 0
+		var num byte
+		var prev byte
+		for i, c := range line {
+			if c >= '0' && c <= '9' {
+
+				if prev == '+' {
+					newLine = append(newLine[:start], '(', num, prev, c, ')', newLine[i:]...)
+				}
+
+				num = c
+				start = i
+			}
+			if c != ' ' {
+				prev = c
+			}
+		}
+
+		total := (&parser{data: newLine}).evaluate()
+		fmt.Printf("%s = %d\n", newLine, total)
 		sum += total
+		return
 	}
 	fmt.Println(sum)
 }
