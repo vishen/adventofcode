@@ -5,10 +5,11 @@ import (
 	"fmt"
 	"io/ioutil"
 	"log"
+	"strings"
 )
 
 func main() {
-	data, err := ioutil.ReadFile("./input.txt")
+	data, err := ioutil.ReadFile("./input2.txt")
 	if err != nil {
 		log.Fatalf("unable to open file: %v", err)
 	}
@@ -36,6 +37,7 @@ func run(data []byte) {
 
 	tickets := []int{}
 	nearby := []int{}
+	nearbyLen := 0
 
 	lines := bytes.Split(data, []byte{'\n'})
 	for i, line := range lines {
@@ -71,17 +73,20 @@ func run(data []byte) {
 				s = state_nearby_tickets
 			}
 		case state_nearby_tickets:
-			for _, ticket := range bytes.Split(line, []byte{','}) {
+			if len(line) == 0 {
+				continue
+			}
+			tickets := bytes.Split(line, []byte{','})
+			if nearbyLen == 0 {
+				nearbyLen = len(tickets)
+			}
+			for _, ticket := range tickets {
 				nearby = append(nearby, convertToInt(ticket))
 			}
 		}
 	}
 
-	fmt.Println(fields)
-	fmt.Println(tickets)
-	// fmt.Println(nearby)
-
-	invalid := 0
+	validNearby := []int{}
 	for _, n := range nearby {
 		valid := false
 		for _, fs := range fields {
@@ -91,13 +96,74 @@ func run(data []byte) {
 				}
 			}
 		}
-		if !valid {
-			// fmt.Println(n)
-			invalid += n
+		if valid {
+			validNearby = append(validNearby, n)
 		}
 	}
 
-	fmt.Println(invalid)
+	possibleField := map[string][]int{}
+	for name := range fields {
+		for i := 0; i < len(fields); i++ {
+			possibleField[name] = append(possibleField[name], 1)
+		}
+	}
+	fmt.Println(possibleField)
+
+	// Add our tickets
+	validNearby = append(validNearby, tickets...)
+
+	likelyFields := map[string]int{}
+	run := true
+	for run {
+		run = false
+		for i, n := range validNearby {
+			index := i % nearbyLen
+			for name, fs := range fields {
+				v := false
+				for _, f := range fs {
+					if n >= f.from && n <= f.to {
+						v = true
+					}
+				}
+				if !v {
+					if _, ok := possibleField[name]; ok {
+						possibleField[name][index] = 0
+					}
+				}
+			}
+		}
+
+		fmt.Println("--------------------")
+		fmt.Println(possibleField)
+		for i := 0; i < len(fields); i++ {
+			c := 0
+			name := ""
+			for n, fs := range possibleField {
+				if fs[i] == 1 {
+					name = n
+					c += 1
+				}
+			}
+			fmt.Println(name, c)
+
+			if c == 1 {
+				likelyFields[name] = i
+				delete(possibleField, name)
+				fmt.Println("FOUND")
+				run = true
+			}
+		}
+
+	}
+
+	val := 1
+	for name, field := range likelyFields {
+		fmt.Println(name, field)
+		if strings.HasPrefix("departure ", name) {
+			val *= tickets[field]
+		}
+	}
+	fmt.Println(val)
 }
 
 func convertToInt(val []byte) int {

@@ -5,9 +5,10 @@ import "fmt"
 func main() {
 	input := []int{20, 0, 1, 11, 6, 3}
 	turns := 2020
+	turns = 30000000
 
-	input = []int{1, 3, 2}
-	turns = 100
+	//input = []int{1, 3, 2}
+	//turns = 100
 
 	lastSpoken := map[int]int{}
 	last := 0
