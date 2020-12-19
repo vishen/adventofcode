@@ -23,32 +23,9 @@ func run(data []byte) {
 			continue
 		}
 
-		// Add paratheses around addition to force precendence
-		newLine := make([]byte, len(line))
-		copy(newLine, line)
-
-		start := 0
-		var num byte
-		var prev byte
-		for i, c := range line {
-			if c >= '0' && c <= '9' {
-
-				if prev == '+' {
-					newLine = append(newLine[:start], '(', num, prev, c, ')', newLine[i:]...)
-				}
-
-				num = c
-				start = i
-			}
-			if c != ' ' {
-				prev = c
-			}
-		}
-
-		total := (&parser{data: newLine}).evaluate()
-		fmt.Printf("%s = %d\n", newLine, total)
+		total := (&parser{data: line}).evaluate()
+		fmt.Printf("%s = %d\n", line, total)
 		sum += total
-		return
 	}
 	fmt.Println(sum)
 }
@@ -67,8 +44,13 @@ func (p *parser) evaluate() int {
 		p.i++
 
 		switch b {
-		case '+', '*':
+		case '+':
 			operator = b
+		case '*':
+			operator = b
+			by := p.evaluate()
+			// total = value(total, operator, by)
+			return value(total, operator, by)
 		case '(':
 			by := p.evaluate()
 			total = value(total, operator, by)
@@ -85,11 +67,13 @@ func (p *parser) evaluate() int {
 }
 
 func value(total int, operator byte, by int) int {
+	val := 0
 	switch operator {
 	case '+':
-		return total + by
+		val = total + by
 	case '*':
-		return total * by
+		val = total * by
 	}
-	return total
+	// fmt.Printf("value: %d %c %d = %d\n", total, operator, by, val)
+	return val
 }
