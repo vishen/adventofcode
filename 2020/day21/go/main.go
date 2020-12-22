@@ -5,11 +5,13 @@ import (
 	"fmt"
 	"io/ioutil"
 	"log"
+	"sort"
+	"strings"
 )
 
 func main() {
 
-	data, err := ioutil.ReadFile("./input.txt")
+	data, err := ioutil.ReadFile("./input2.txt")
 	if err != nil {
 		log.Fatalf("unable to open file: %v", err)
 	}
@@ -67,7 +69,7 @@ func run(data []byte) {
 
 	likelyUsed := map[string]int{}
 	likelyUnused := map[string]int{}
-	for _, a := range allergens {
+	for name, a := range allergens {
 		for i, count := range a.possibleIngredients {
 			if a.count == count {
 				likelyUsed[i]++
@@ -76,8 +78,10 @@ func run(data []byte) {
 			}
 		}
 	}
-	//fmt.Println(likelyUsed)
-	//fmt.Println(likelyUnused)
+
+	//	sortableAllergens := []sortableAllergen{}
+
+	//				sortableAllergens = append(sortableAllergens, sortableAllergen{name, i})
 
 	total := 0
 	for possiblyUnused, _ := range likelyUnused {
@@ -85,8 +89,23 @@ func run(data []byte) {
 			continue
 		}
 		count := ingredientsAppear[possiblyUnused]
-		//fmt.Println(possiblyUnused, count)
 		total += count
 	}
 	fmt.Println("Part 1: ", total)
+
+	sort.Slice(sortableAllergens, func(i, j int) bool {
+		return sortableAllergens[i].allergen < sortableAllergens[j].allergen
+	})
+
+	canonicalIngredients := []string{}
+	for _, a := range sortableAllergens {
+		fmt.Println(a)
+		canonicalIngredients = append(canonicalIngredients, a.ingredient)
+	}
+	fmt.Println(strings.Join(canonicalIngredients, ","))
+}
+
+type sortableAllergen struct {
+	allergen   string
+	ingredient string
 }
