@@ -6,18 +6,33 @@ import (
 )
 
 func main() {
-	//input := []int{3, 8, 9, 1, 2, 5, 4, 6, 7}
-	input := []int{9, 6, 2, 7, 1, 3, 8, 5, 4}
+	input := []int{3, 8, 9, 1, 2, 5, 4, 6, 7}
+	//input := []int{9, 6, 2, 7, 1, 3, 8, 5, 4}
 	run(input)
 }
 
-func run(input []int) {
-	turns := 100
+//const size = 1_000_000
+const size = 10
+
+func run(inputStart []int) {
+
+	input := make([]int, size-1)
+	copy(input, inputStart)
+
+	for i := 10; i < size; i++ {
+		input[i-1] = i
+	}
+
+	fmt.Println("Finished setting up input")
+
+	window := 10
+
+	turns := 2
 	for i := 0; i < turns; i++ {
 
 		iw := i % len(input)
-		max := iw + len(input)
-		inputExt := append(input, input...)
+		inputExt := make([]int, 0, window)
+		copy(inputExt, input[:window])
 		cur := input[iw]
 
 		fmt.Printf("Turn %d: %v\n", i+1, input)
@@ -29,26 +44,26 @@ func run(input []int) {
 			hold[n] = true
 		}
 
-		num := previous(cur)
+		num := previous(cur, window-1)
 		for i := 0; i < len(hold); i++ {
 			if _, ok := hold[num]; !ok {
 				break
 			}
-			num = previous(num)
+			num = previous(num, window-1)
 		}
 
 		index := 0
-		for j, n := range inputExt[iw+4 : max] {
+		for j, n := range inputExt[iw+4 : window] {
 			if n == num {
 				index = j
 				break
 			}
 		}
 
-		newInput := make([]int, len(input))
+		newInput := make([]int, len(inputExt))
 		nj := 0
 		for j := 0; j < iw+1; j++ {
-			newInput[nj] = input[j]
+			newInput[nj] = inputExt[j]
 			nj++
 		}
 		for j := iw + 4; j < iw+5+index; j++ {
@@ -67,8 +82,10 @@ func run(input []int) {
 			nj++
 		}
 		fmt.Println("num:", num, index)
-		input = newInput[:len(input)]
-		fmt.Println(input)
+		for _, i := range newInput {
+			input[i] = newInput[i]
+		}
+		window++
 	}
 
 	// Part 1
@@ -91,12 +108,11 @@ func run(input []int) {
 
 func previous(cur int) int {
 	// This is always the case in all games
-	max := 9
 	min := 1
 
 	cur -= 1
 	if cur < min {
-		return max
+		return size
 	}
 	return cur
 }
