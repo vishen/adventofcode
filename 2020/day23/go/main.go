@@ -1,118 +1,127 @@
 package main
 
-import (
-	"fmt"
-	"strconv"
-)
+import "fmt"
 
 func main() {
-	input := []int{3, 8, 9, 1, 2, 5, 4, 6, 7}
-	//input := []int{9, 6, 2, 7, 1, 3, 8, 5, 4}
-	run(input)
+	/*
+		input := []int{9, 6, 2, 7, 1, 3, 8, 5, 4}
+		part1 := run(input, len(input), 100)
+		total := 0
+		for i := part1[1]; i != 1; i = part1[i] {
+			total = 10*total + i
+		}
+		fmt.Println("Part 1", total)
+	*/
+
+	// input := []int{3, 8, 9, 1, 2, 5, 4, 6, 7}
+	//run(input, 15, 100)
+	// input = []int{9, 6, 2, 7, 1, 3, 8, 5, 4}
+	//found := run(input, 1_000_000, 10_000_000)
+	found := play("962713854", 1_000_000, 10_000_000)
+	fmt.Println(found[1] * found[found[1]])
 }
 
-//const size = 1_000_000
-const size = 10
+func run(input []int, size, turns int) []int {
+	numbers := make([]int, size)
 
-func run(inputStart []int) {
-
-	input := make([]int, size-1)
-	copy(input, inputStart)
-
-	for i := 10; i < size; i++ {
-		input[i-1] = i
+	last := input[0]
+	numbers[0] = last
+	for _, n := range input[1:] {
+		numbers[last] = n
+		last = n
 	}
 
-	fmt.Println("Finished setting up input")
+	for i := len(input) + 1; i < size; i++ {
+		numbers[last] = i
+		last = i
+	}
 
-	window := 10
+	current := numbers[0]
+	numbers[last] = current
 
-	turns := 2
 	for i := 0; i < turns; i++ {
-
-		iw := i % len(input)
-		inputExt := make([]int, 0, window)
-		copy(inputExt, input[:window])
-		cur := input[iw]
-
-		fmt.Printf("Turn %d: %v\n", i+1, input)
-		fmt.Println("destination:", cur)
-		fmt.Println("pick up:", inputExt[1+iw:4+iw])
-
-		hold := map[int]bool{}
-		for _, n := range inputExt[1+iw : 4+iw] {
-			hold[n] = true
+		if i%100_000 == 0 {
+			fmt.Println("Turn", i/100_000, "K")
 		}
 
-		num := previous(cur, window-1)
-		for i := 0; i < len(hold); i++ {
-			if _, ok := hold[num]; !ok {
-				break
+		hold1 := numbers[current]
+		hold2 := numbers[hold1]
+		hold3 := numbers[hold2]
+
+		destination := current - 1
+		for {
+			if destination == 0 {
+				destination = size - 1
 			}
-			num = previous(num, window-1)
-		}
-
-		index := 0
-		for j, n := range inputExt[iw+4 : window] {
-			if n == num {
-				index = j
-				break
+			if destination == hold1 || destination == hold2 || destination == hold3 {
+				destination--
+				continue
 			}
+			break
 		}
 
-		newInput := make([]int, len(inputExt))
-		nj := 0
-		for j := 0; j < iw+1; j++ {
-			newInput[nj] = inputExt[j]
-			nj++
-		}
-		for j := iw + 4; j < iw+5+index; j++ {
-			jw := nj % len(input)
-			newInput[jw] = inputExt[j]
-			nj++
-		}
-		for j := iw + 1; j < iw+4; j++ {
-			jw := nj % len(input)
-			newInput[jw] = inputExt[j]
-			nj++
-		}
-		for j := iw + 5 + index; j < len(input); j++ {
-			jw := nj % len(input)
-			newInput[jw] = inputExt[j]
-			nj++
-		}
-		fmt.Println("num:", num, index)
-		for _, i := range newInput {
-			input[i] = newInput[i]
-		}
-		window++
+		next := numbers[hold3]
+		numbers[current] = next
+		current = next
+		numbers[hold3] = numbers[destination]
+		numbers[destination] = hold1
 	}
-
-	// Part 1
-	output1 := ""
-	output2 := ""
-	rev := false
-	for _, num := range input {
-		if num == 1 {
-			rev = true
-			continue
-		}
-		if !rev {
-			output1 += strconv.Itoa(num)
-		} else {
-			output2 += strconv.Itoa(num)
-		}
-	}
-	fmt.Println(output2 + output1)
+	return numbers
 }
 
-func previous(cur int) int {
-	// This is always the case in all games
-	min := 1
-
-	cur -= 1
-	if cur < min {
-		return size
+func printNumbers(numbers []int) {
+	n := numbers[0]
+	fmt.Print(n, " ")
+	for i := 0; i < len(numbers)-2; i++ {
+		n = numbers[n]
+		fmt.Print(n, " ")
 	}
-	return cur
+	fmt.Println()
+}
+
+func play(seed string, cups, rounds int) []int {
+	// next[i] is the label of the cup that comes next (clockwise)
+	// after the cup labeled i
+	next := make([]int, 1+cups)
+
+	last := 0
+	for i := 0; i < cups; i++ {
+		x := i + 1
+		if i < len(seed) {
+			x = int(seed[i] - '0')
+		}
+
+		next[last] = x
+		last = x
+	}
+
+	current := next[0]
+	next[last] = current
+	next[0] = -1e9 // poison
+
+	for i := 0; i < rounds; i++ {
+		next1 := next[current]
+		next2 := next[next1]
+		next3 := next[next2]
+		next4 := next[next3]
+
+		dest := current
+		for {
+			dest--
+			if dest == 0 {
+				dest = cups
+			}
+			if dest != next1 && dest != next2 && dest != next3 {
+				break
+			}
+		}
+
+		next[current] = next4
+		current = next4
+
+		next[next3] = next[dest]
+		next[dest] = next1
+	}
+
+	return next
 }
