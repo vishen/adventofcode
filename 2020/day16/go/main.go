@@ -5,11 +5,11 @@ import (
 	"fmt"
 	"io/ioutil"
 	"log"
-	"strings"
+	"sort"
 )
 
 func main() {
-	data, err := ioutil.ReadFile("./input2.txt")
+	data, err := ioutil.ReadFile("./input.txt")
 	if err != nil {
 		log.Fatalf("unable to open file: %v", err)
 	}
@@ -101,69 +101,108 @@ func run(data []byte) {
 		}
 	}
 
-	possibleField := map[string][]int{}
-	for name := range fields {
-		for i := 0; i < len(fields); i++ {
-			possibleField[name] = append(possibleField[name], 1)
-		}
-	}
-	fmt.Println(possibleField)
-
 	// Add our tickets
 	validNearby = append(validNearby, tickets...)
 
-	likelyFields := map[string]int{}
-	run := true
-	for run {
-		run = false
-		for i, n := range validNearby {
-			index := i % nearbyLen
-			for name, fs := range fields {
-				v := false
-				for _, f := range fs {
-					if n >= f.from && n <= f.to {
-						v = true
-					}
+	// Use the nearby tickets to determine which fields
+	// are definitely not used.
+	possibleFields := map[string]*field{}
+	possibleFieldsList := make([]*field, 0, len(fields))
+	for name := range fields {
+		f := newField(name, len(fields))
+		possibleFields[name] = f
+		possibleFieldsList = append(possibleFieldsList, f)
+	}
+
+	for i, n := range validNearby {
+		index := i % nearbyLen
+		for name, fs := range fields {
+			v := false
+			for _, f := range fs {
+				if n >= f.from && n <= f.to {
+					v = true
 				}
-				if !v {
-					if _, ok := possibleField[name]; ok {
-						possibleField[name][index] = 0
-					}
+			}
+			if !v {
+				if _, ok := possibleFields[name]; ok {
+					possibleFields[name].unset(index)
 				}
 			}
 		}
+	}
+
+	fmt.Println("--------------------")
+	fmt.Println("POSSIBLE:")
+	sort.Slice(possibleFieldsList, func(i, j int) bool {
+		return possibleFieldsList[i].notSet > possibleFieldsList[j].notSet
+	})
+	for _, v := range possibleFieldsList {
+		fmt.Println(v)
+	}
+	run := true
+	likelyFields := map[string]int{}
+	for run {
+		run = false
 
 		fmt.Println("--------------------")
-		fmt.Println(possibleField)
+		fmt.Println("POSSIBLE: ", possibleFields)
 		for i := 0; i < len(fields); i++ {
 			c := 0
 			name := ""
-			for n, fs := range possibleField {
-				if fs[i] == 1 {
+			for n, fs := range possibleFields {
+				if fs.rows[i] == 1 {
 					name = n
 					c += 1
 				}
 			}
-			fmt.Println(name, c)
 
 			if c == 1 {
 				likelyFields[name] = i
-				delete(possibleField, name)
-				fmt.Println("FOUND")
+				delete(possibleFields, name)
 				run = true
 			}
 		}
-
 	}
 
-	val := 1
-	for name, field := range likelyFields {
-		fmt.Println(name, field)
-		if strings.HasPrefix("departure ", name) {
-			val *= tickets[field]
+	fmt.Println("--------------")
+	fmt.Println("LIKELY", likelyFields)
+
+	/*
+		val := 1
+		for name, field := range likelyFields {
+			fmt.Println(name, field)
+			if strings.HasPrefix("departure ", name) {
+				val *= tickets[field]
+			}
 		}
+		fmt.Println(val)
+	*/
+}
+
+type field struct {
+	name   string
+	notSet int
+
+	rows []int
+}
+
+func newField(name string, numFields int) *field {
+	rows := make([]int, numFields)
+	for i := 0; i < numFields; i++ {
+		rows[i] = 1
 	}
-	fmt.Println(val)
+	return &field{
+		name:   name,
+		notSet: 0,
+		rows:   rows,
+	}
+}
+
+func (f *field) unset(index int) {
+	if f.rows[index] == 1 {
+		f.notSet += 1
+	}
+	f.rows[index] = 0
 }
 
 func convertToInt(val []byte) int {

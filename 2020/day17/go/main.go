@@ -8,7 +8,7 @@ import (
 )
 
 func main() {
-	data, err := ioutil.ReadFile("./input2.txt")
+	data, err := ioutil.ReadFile("./input.txt")
 	if err != nil {
 		log.Fatalf("unable to open file: %v", err)
 	}
@@ -17,14 +17,14 @@ func main() {
 }
 
 type point struct {
-	x, y, z int
+	x, y, z, w int
 }
 
 func run(data []byte) {
 	state := map[point]bool{}
 
 	size := 0
-	y, z := 0, 0
+	y, z, w := 0, 0, 0
 	for _, line := range bytes.Split(data, []byte{'\n'}) {
 		if len(line) == 0 {
 			continue
@@ -37,17 +37,15 @@ func run(data []byte) {
 		// For the initial state, z is always 0
 		for i, c := range line {
 			if c == '#' {
-				state[point{i, y, z}] = true
+				state[point{i, y, z, w}] = true
 			}
 		}
 		y += 1
 	}
 
-	steps := 1
+	steps := 6
 	for i := 0; i < steps; i++ {
-		size, state = step(size, state)
-		fmt.Println(size)
-		fmt.Println(state)
+		state = step(state)
 	}
 
 	active := 0
@@ -59,22 +57,26 @@ func run(data []byte) {
 	fmt.Println(active)
 }
 
-func step(size int, state map[point]bool) (int, map[point]bool) {
+func step(state map[point]bool) map[point]bool {
 	newState := map[point]bool{}
-	newSize := size + 2
 
 	// Handle active state
-	for p := range state {
+	for p, ok := range state {
+		if !ok {
+			continue
+		}
 		activeNextTo := 0
 		for x := -1; x <= 1; x++ {
 			for y := -1; y <= 1; y++ {
 				for z := -1; z <= 1; z++ {
-					if x == 0 && y == 0 && z == 0 {
-						continue
-					}
-					p1 := point{p.x + x, p.y + y, p.z + z}
-					if _, ok := state[p1]; ok {
-						activeNextTo += 1
+					for w := -1; w <= 1; w++ {
+						if x == 0 && y == 0 && z == 0 && w == 0 {
+							continue
+						}
+						p1 := point{p.x + x, p.y + y, p.z + z, p.w + w}
+						if _, ok := state[p1]; ok {
+							activeNextTo += 1
+						}
 					}
 				}
 			}
@@ -84,35 +86,51 @@ func step(size int, state map[point]bool) (int, map[point]bool) {
 		}
 	}
 
-	// Handle inactive states
-	for x := -size; x <= size; x++ {
-		for y := -size; y <= size; y++ {
-			for z := -size; z <= size; z++ {
-				p := point{x, y, z}
-				// Ignore active states
-				if _, ok := state[p]; ok {
-					continue
-				}
-				activeNextTo := 0
-				for x1 := -1; x1 <= 1; x1++ {
-					for y1 := -1; y1 <= 1; y1++ {
-						for z1 := -1; z1 <= 1; z1++ {
-							if x1 == 0 && y1 == 0 && z1 == 0 {
-								continue
-							}
-							p1 := point{x + x1, y + y1, z + z1}
-							if _, ok := state[p1]; ok {
-								activeNextTo += 1
-							}
+	// Handle inactive state
+	inactive := []point{}
+	for p, ok := range state {
+		if !ok {
+			continue
+		}
+		for x := -1; x <= 1; x++ {
+			for y := -1; y <= 1; y++ {
+				for z := -1; z <= 1; z++ {
+					for w := -1; w <= 1; w++ {
+						if x == 0 && y == 0 && z == 0 && w == 0 {
+							continue
+						}
+						p1 := point{p.x + x, p.y + y, p.z + z, p.w + w}
+						if set := state[p1]; !set {
+							inactive = append(inactive, p1)
 						}
 					}
-				}
-				if activeNextTo == 3 {
-					newState[p] = true
 				}
 			}
 		}
 	}
 
-	return newSize, newState
+	for _, i := range inactive {
+		adjacent := 0
+		for x := -1; x <= 1; x++ {
+			for y := -1; y <= 1; y++ {
+				for z := -1; z <= 1; z++ {
+					for w := -1; w <= 1; w++ {
+						if x == 0 && y == 0 && z == 0 && w == 0 {
+							continue
+						}
+						p1 := point{i.x + x, i.y + y, i.z + z, i.w + w}
+						if _, ok := state[p1]; ok {
+							adjacent += 1
+						}
+					}
+				}
+			}
+		}
+
+		if adjacent == 3 {
+			newState[i] = true
+		}
+	}
+
+	return newState
 }
