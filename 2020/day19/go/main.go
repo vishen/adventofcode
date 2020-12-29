@@ -71,6 +71,16 @@ func run(data []byte) {
 	for id, rule := range rules {
 		fmt.Println(id, rule)
 	}
+
+	total := 0
+	for _, check := range toCheck {
+		matched := match(check)
+		if matched {
+			total += 1
+		}
+		fmt.Println(check, matched)
+	}
+	fmt.Println("Matched:", total)
 	/*
 		buildCache(rules["0"])
 		for id, rule := range rules {
@@ -79,18 +89,126 @@ func run(data []byte) {
 		fmt.Println("CACHED")
 	*/
 
-	total := 0
-	for i, check := range toCheck {
-		e := &engine{input: check}
-		matched := e.checkRules(rules["0"]) && e.ended()
-		fmt.Println(i+1, check, matched)
-		if matched {
-			total += 1
+	/*
+		total := 0
+		for i, check := range toCheck {
+			e := &engine{input: check}
+			matched := e.checkRules(rules["0"], check)
+			fmt.Println(i+1, check, matched)
+			if matched {
+				total += 1
+			}
 		}
+	*/
+
+	// fmt.Printf("Matched: %d\n", total)
+}
+
+func match(input string) bool {
+	i := 0
+	r := rules["0"]
+
+	var step func(r *rule) bool
+	step = func(r *rule) bool {
+		found := true
+		pi := i
+		if len(r.children2) == 0 {
+			found = false
+		}
+		for _, c := range r.children2 {
+			rc := rules[c]
+			if rc.c != "" {
+				if rc.c != string(input[i]) {
+					found = false
+					break
+				}
+				i++
+				if i >= len(input) {
+					break
+				}
+			}
+			if !step(rc) {
+				found = false
+				break
+			}
+		}
+		if found {
+			return true
+		}
+		i = pi
+		found = true
+		for _, c := range r.children1 {
+			rc := rules[c]
+			if rc.c != "" {
+				if rc.c != string(input[i]) {
+					found = false
+					break
+				}
+				i++
+				if i >= len(input) {
+					break
+				}
+			}
+			if !step(rc) {
+				found = false
+				break
+			}
+		}
+		if found {
+			return true
+		}
+		i = pi
+		return found
 	}
 
-	fmt.Printf("Matched: %d\n", total)
+	return step(r) && i == len(input)
 }
+
+/*
+
+nstate := []string{"0"}
+
+	for _, char := range []byte(message) {
+		var next []string
+
+		var step func(string)
+		step = func(state string) {
+			if state == "" {
+				return
+			}
+
+			head, rest := state, ""
+			if i := strings.Index(head, " "); i >= 0 {
+				head, rest = head[:i], head[i:]
+			}
+
+			if head[0] == '"' {
+				if head[1] == char {
+					next = append(next, strings.TrimPrefix(rest, " "))
+				}
+			} else if rule, ok := rules[head]; ok {
+				for _, alt := range strings.Split(rule, " | ") {
+					step(alt + rest)
+				}
+			} else {
+				panic(head)
+			}
+		}
+
+		for _, state := range nstate {
+			step(state)
+		}
+		nstate = next
+	}
+
+	for _, state := range nstate {
+		if len(state) == 0 {
+			return true
+		}
+	}
+*/
+
+/*
 
 type engine struct {
 	input    string
@@ -99,15 +217,39 @@ type engine struct {
 }
 
 func (e *engine) ended() bool {
+	fmt.Println("ended", e.i, len(e.input))
 	return e.i == len(e.input)
 }
 
+func (e *engine) checkRules(r *rule, input string) bool {
+	if r.c != "" {
+		return string(input[0]) == r.c
+	}
+
+	found := true
+	for _, c := range r.children1 {
+		rc := rules[c]
+		if !e.checkRules(rc) {
+			found = false
+			break
+		}
+		e.i++
+	}
+	if found {
+		return true
+	}
+	return true
+}
+
+*/
+
+/*
 func (e *engine) checkRules(r *rule) bool {
 	fmt.Printf("d1: rid=%s, i=%d\n", r.id, e.i)
 	if r.c != "" {
 		if e.i >= len(e.input) {
-			// return false
-			panic("shouldn't get here")
+			return false
+			// panic("shouldn't get here")
 		}
 		fmt.Printf("d2: rid=%s, equal=%t\n", r.id, r.c == string(e.input[e.i]))
 		equal := r.c == string(e.input[e.i])
@@ -116,8 +258,9 @@ func (e *engine) checkRules(r *rule) bool {
 	}
 
 	pi := e.i
-	found := true
+	found := false
 	if !e.inRepeat && len(r.children2) > 0 {
+		found = true
 		for _, c := range r.children2 {
 			fmt.Printf("d4: rid=%s c2=%s\n", r.id, c)
 			if r.id == c {
@@ -131,7 +274,7 @@ func (e *engine) checkRules(r *rule) bool {
 					count += 1
 				}
 				e.inRepeat = false
-				if count < 1 {
+				if count == 0 {
 					found = false
 					break
 				}
@@ -175,6 +318,7 @@ func (e *engine) checkRules(r *rule) bool {
 	e.i = pi
 	return false
 }
+*/
 
 func buildCache(r *rule) []string {
 	if r.cached != nil {
