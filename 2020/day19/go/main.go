@@ -24,7 +24,7 @@ type rule struct {
 }
 
 func main() {
-	data, err := ioutil.ReadFile("./input6.txt")
+	data, err := ioutil.ReadFile("./input5.txt")
 	if err != nil {
 		log.Fatalf("unable to open file: %v", err)
 	}
@@ -81,87 +81,48 @@ func run(data []byte) {
 		fmt.Println(check, matched)
 	}
 	fmt.Println("Matched:", total)
-	/*
-		buildCache(rules["0"])
-		for id, rule := range rules {
-			fmt.Println(id, rule)
-		}
-		fmt.Println("CACHED")
-	*/
-
-	/*
-		total := 0
-		for i, check := range toCheck {
-			e := &engine{input: check}
-			matched := e.checkRules(rules["0"], check)
-			fmt.Println(i+1, check, matched)
-			if matched {
-				total += 1
-			}
-		}
-	*/
-
-	// fmt.Printf("Matched: %d\n", total)
 }
 
 func match(input string) bool {
 	i := 0
 	r := rules["0"]
 
-	var step func(r *rule) bool
-	step = func(r *rule) bool {
-		found := true
-		pi := i
-		if len(r.children2) == 0 {
-			found = false
+	var step func(children []string) bool
+	step = func(children []string) bool {
+		if len(children) == 0 {
+			return false
 		}
-		for _, c := range r.children2 {
+		matched := true
+		for _, c := range children {
 			rc := rules[c]
 			if rc.c != "" {
 				if rc.c != string(input[i]) {
-					found = false
+					matched = false
 					break
 				}
 				i++
 				if i >= len(input) {
 					break
 				}
-			}
-			if !step(rc) {
-				found = false
-				break
-			}
-		}
-		if found {
-			return true
-		}
-		i = pi
-		found = true
-		for _, c := range r.children1 {
-			rc := rules[c]
-			if rc.c != "" {
-				if rc.c != string(input[i]) {
-					found = false
-					break
+			} else {
+				pi := i
+				matched1 := step(rc.children1)
+				pi1 := i
+				i = pi
+				matched2 := step(rc.children2)
+				if !matched2 && matched1 {
+					i = pi1
 				}
-				i++
-				if i >= len(input) {
+				matched = matched1 || matched2
+				if !matched {
 					break
 				}
 			}
-			if !step(rc) {
-				found = false
-				break
-			}
 		}
-		if found {
-			return true
-		}
-		i = pi
-		return found
+		return matched
 	}
 
-	return step(r) && i == len(input)
+	return step(r.children1) && i == len(input)
 }
 
 /*
