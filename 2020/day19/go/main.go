@@ -5,15 +5,26 @@ import (
 	"fmt"
 	"io/ioutil"
 	"log"
-	"strconv"
 )
 
 var (
-	rules = map[string][]byte{}
+	rules = map[string]*rule{}
 )
 
+type rule struct {
+	id        string
+	children1 []string
+	children2 []string
+
+	repeat bool
+
+	c string
+
+	cached []string
+}
+
 func main() {
-	data, err := ioutil.ReadFile("./input.txt")
+	data, err := ioutil.ReadFile("./input6.txt")
 	if err != nil {
 		log.Fatalf("unable to open file: %v", err)
 	}
@@ -22,7 +33,6 @@ func main() {
 }
 
 func run(data []byte) {
-
 	toCheck := []string{}
 	for _, line := range bytes.Split(data, []byte{'\n'}) {
 		if len(line) == 0 {
@@ -30,15 +40,257 @@ func run(data []byte) {
 		}
 		lineSplit := bytes.Split(line, []byte{':'})
 		if len(lineSplit) > 1 {
-			rules[string(lineSplit[0])] = append(rules[string(lineSplit[0])], lineSplit[1]...)
+			id := string(lineSplit[0])
+			r := &rule{id: id}
+
+			if bytes.HasPrefix(lineSplit[1], []byte{' ', '"'}) {
+				r.c = string(lineSplit[1][2])
+			} else {
+				for i, children := range bytes.Split(lineSplit[1], []byte{'|'}) {
+					if len(children) == 0 {
+						continue
+					}
+					for _, c := range bytes.Split(children, []byte{' '}) {
+						if len(c) == 0 {
+							continue
+						}
+						if i == 0 {
+							r.children1 = append(r.children1, string(c))
+						} else {
+							r.children2 = append(r.children2, string(c))
+						}
+					}
+				}
+			}
+			rules[id] = r
 		} else {
 			toCheck = append(toCheck, string(line))
 		}
 	}
 
+	for id, rule := range rules {
+		fmt.Println(id, rule)
+	}
+	/*
+		buildCache(rules["0"])
+		for id, rule := range rules {
+			fmt.Println(id, rule)
+		}
+		fmt.Println("CACHED")
+	*/
+
+	total := 0
+	for i, check := range toCheck {
+		e := &engine{input: check}
+		matched := e.checkRules(rules["0"]) && e.ended()
+		fmt.Println(i+1, check, matched)
+		if matched {
+			total += 1
+		}
+	}
+
+	fmt.Printf("Matched: %d\n", total)
+}
+
+type engine struct {
+	input    string
+	i        int
+	inRepeat bool
+}
+
+func (e *engine) ended() bool {
+	return e.i == len(e.input)
+}
+
+func (e *engine) checkRules(r *rule) bool {
+	fmt.Printf("d1: rid=%s, i=%d\n", r.id, e.i)
+	if r.c != "" {
+		if e.i >= len(e.input) {
+			// return false
+			panic("shouldn't get here")
+		}
+		fmt.Printf("d2: rid=%s, equal=%t\n", r.id, r.c == string(e.input[e.i]))
+		equal := r.c == string(e.input[e.i])
+		e.i++
+		return equal
+	}
+
+	pi := e.i
+	found := true
+	for _, c := range r.children1 {
+		fmt.Printf("d3: rid=%s c1=%s\n", r.id, c)
+		rc := rules[c]
+		if !e.checkRules(rc) {
+			found = false
+			break
+		}
+		fmt.Printf("d5: rid=%s c1=%s e.i=%d\n", r.id, c, e.i)
+		if e.i >= len(e.input) {
+			break
+		}
+	}
+
+	if found {
+		return true
+	}
+
+	e.i = pi
+
+	if e.inRepeat {
+		return false
+	}
+
+	if len(r.children2) == 0 {
+		return false
+	}
+
+	found = true
+	for _, c := range r.children2 {
+		fmt.Printf("d4: rid=%s c2=%s\n", r.id, c)
+		if r.id == c {
+			fmt.Println("repeating")
+			e.inRepeat = true
+			count := 0
+			for {
+				if !e.checkRules(r) {
+					break
+				}
+				count += 1
+			}
+			e.inRepeat = false
+			if count < 1 {
+				found = false
+				break
+			}
+		} else {
+			rc := rules[c]
+			if !e.checkRules(rc) {
+				found = false
+				break
+			}
+			fmt.Printf("d6: rid=%s c2=%s e.i=%d\n", r.id, c, e.i)
+			if e.i >= len(e.input) {
+				break
+			}
+		}
+	}
+
+	if found {
+		return true
+	}
+	e.i = pi
+	return false
+}
+
+func buildCache(r *rule) []string {
+	if r.cached != nil {
+		return r.cached
+	}
+
+	if r.c != "" {
+		return []string{r.c}
+	}
+
+	children1 := []string{}
+	for _, c := range r.children1 {
+		if c == r.id {
+			r.repeat = true
+			continue
+		}
+		values := buildCache(rules[c])
+		if len(children1) == 0 {
+			children1 = append(children1, values...)
+		} else {
+			children1 = join(children1, values...)
+		}
+	}
+	results := make([]string, len(children1))
+	copy(results, children1)
+
+	children2 := []string{}
+	for _, c := range r.children2 {
+		var values []string
+		if c == r.id {
+			r.repeat = true
+			continue
+			// values = join([]string{"R"}, children1...)
+		} else {
+			values = buildCache(rules[c])
+		}
+		if len(children2) == 0 {
+			children2 = append(children2, values...)
+		} else {
+			children2 = join(children2, values...)
+		}
+	}
+
+	results = append(results, children2...)
+	r.cached = results
+	return results
+}
+
+func join(l1 []string, l2 ...string) []string {
+	l3 := []string{}
+	for _, l1 := range l1 {
+		for _, l2 := range l2 {
+			l3 = append(l3, l1+l2)
+		}
+	}
+	return l3
+}
+
+/*
+func buildCache(r *rule) []string {
+	if r.cached != nil {
+		return r.cached
+	}
+
+	if r.c != "" {
+		return []string{r.c}
+	}
+
+	children1 := []string{}
+	for _, c := range r.children1 {
+		if c == r.id {
+			r.repeat = true
+			continue
+		}
+		values := buildCache(rules[c])
+		if len(children1) == 0 {
+			children1 = append(children1, values...)
+		} else {
+			children1 = join(children1, values...)
+		}
+	}
+	results := make([]string, len(children1))
+	copy(results, children1)
+
+	children2 := []string{}
+	for _, c := range r.children2 {
+		var values []string
+		if c == r.id {
+			r.repeat = true
+			continue
+			// values = join([]string{"R"}, children1...)
+		} else {
+			values = buildCache(rules[c])
+		}
+		if len(children2) == 0 {
+			children2 = append(children2, values...)
+		} else {
+			children2 = join(children2, values...)
+		}
+	}
+
+	results = append(results, children2...)
+	r.cached = results
+	return results
+}
+
 	fmt.Println("Generating matches...")
 	m := matches("0")
 	fmt.Println("looking for matches")
+	return
 	matched := 0
 	for i, c := range toCheck {
 		for _, m1 := range m {
@@ -178,3 +430,4 @@ func join(l1 []string, l2 ...string) []string {
 	fmt.Println("join: done")
 	return l3
 }
+*/
