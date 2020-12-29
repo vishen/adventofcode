@@ -117,6 +117,44 @@ func (e *engine) checkRules(r *rule) bool {
 
 	pi := e.i
 	found := true
+	if !e.inRepeat && len(r.children2) > 0 {
+		for _, c := range r.children2 {
+			fmt.Printf("d4: rid=%s c2=%s\n", r.id, c)
+			if r.id == c {
+				fmt.Println("repeating")
+				e.inRepeat = true
+				count := 0
+				for {
+					if !e.checkRules(r) {
+						break
+					}
+					count += 1
+				}
+				e.inRepeat = false
+				if count < 1 {
+					found = false
+					break
+				}
+			} else {
+				rc := rules[c]
+				if !e.checkRules(rc) {
+					found = false
+					break
+				}
+				fmt.Printf("d6: rid=%s c2=%s e.i=%d\n", r.id, c, e.i)
+				if e.i >= len(e.input) {
+					break
+				}
+			}
+		}
+	}
+	if found {
+		return true
+	}
+
+	e.i = pi
+
+	found = true
 	for _, c := range r.children1 {
 		fmt.Printf("d3: rid=%s c1=%s\n", r.id, c)
 		rc := rules[c]
@@ -134,50 +172,6 @@ func (e *engine) checkRules(r *rule) bool {
 		return true
 	}
 
-	e.i = pi
-
-	if e.inRepeat {
-		return false
-	}
-
-	if len(r.children2) == 0 {
-		return false
-	}
-
-	found = true
-	for _, c := range r.children2 {
-		fmt.Printf("d4: rid=%s c2=%s\n", r.id, c)
-		if r.id == c {
-			fmt.Println("repeating")
-			e.inRepeat = true
-			count := 0
-			for {
-				if !e.checkRules(r) {
-					break
-				}
-				count += 1
-			}
-			e.inRepeat = false
-			if count < 1 {
-				found = false
-				break
-			}
-		} else {
-			rc := rules[c]
-			if !e.checkRules(rc) {
-				found = false
-				break
-			}
-			fmt.Printf("d6: rid=%s c2=%s e.i=%d\n", r.id, c, e.i)
-			if e.i >= len(e.input) {
-				break
-			}
-		}
-	}
-
-	if found {
-		return true
-	}
 	e.i = pi
 	return false
 }
