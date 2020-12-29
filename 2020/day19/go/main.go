@@ -24,7 +24,7 @@ type rule struct {
 }
 
 func main() {
-	data, err := ioutil.ReadFile("./input5.txt")
+	data, err := ioutil.ReadFile("./input8.txt")
 	if err != nil {
 		log.Fatalf("unable to open file: %v", err)
 	}
