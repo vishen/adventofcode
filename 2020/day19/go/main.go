@@ -87,15 +87,18 @@ func match(input string) bool {
 	i := 0
 	r := rules["0"]
 
-	var step func(children []string) bool
-	step = func(children []string) bool {
+	var step func(rid string, children []string) bool
+	step = func(rid string, children []string) bool {
 		if len(children) == 0 {
 			return false
 		}
 		matched := true
-		for _, c := range children {
+		for ci, c := range children {
 			rc := rules[c]
 			if rc.c != "" {
+				if i >= len(input) {
+					break
+				}
 				if rc.c != string(input[i]) {
 					matched = false
 					break
@@ -104,12 +107,49 @@ func match(input string) bool {
 				if i >= len(input) {
 					break
 				}
+			} else if c == rid {
+				// handle loop
+				count := 0
+				restMatch := false
+				for {
+					pi := i
+					if !step(c, rc.children1) {
+						i = pi
+						break
+					}
+
+					{
+						// Check to see if the last repeat match is the same as
+						// the next in children, if we have children remaining
+						if len(children) > ci {
+							ppi := i
+							i = pi
+							restMatch = step(rid, children[ci+1:])
+							i = ppi
+							fmt.Println("TRYING REPEAT", restMatch, pi)
+						}
+					}
+
+					count += 1
+					if i >= len(input) {
+						break
+					}
+				}
+				if count == 0 {
+					matched = false
+					break
+				}
+				if restMatch {
+					fmt.Println("AAAAAAAA")
+					break
+				}
+
 			} else {
 				pi := i
-				matched1 := step(rc.children1)
+				matched1 := step(c, rc.children1)
 				pi1 := i
 				i = pi
-				matched2 := step(rc.children2)
+				matched2 := step(c, rc.children2)
 				if !matched2 && matched1 {
 					i = pi1
 				}
@@ -122,7 +162,7 @@ func match(input string) bool {
 		return matched
 	}
 
-	return step(r.children1) && i == len(input)
+	return step(r.id, r.children1) && i == len(input)
 }
 
 /*
