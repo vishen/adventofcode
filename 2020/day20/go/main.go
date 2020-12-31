@@ -5,12 +5,12 @@ import (
 	"fmt"
 	"io/ioutil"
 	"log"
-	"strconv"
+	"math/bits"
 )
 
 func main() {
 
-	data, err := ioutil.ReadFile("./input2.txt")
+	data, err := ioutil.ReadFile("./input.txt")
 	if err != nil {
 		log.Fatalf("unable to open file: %v", err)
 	}
@@ -19,7 +19,8 @@ func main() {
 }
 
 var (
-	tileIDMap = map[string][]string{}
+	tiles = []*tile{}
+	edges = map[uint][]*tile{}
 )
 
 type state int
@@ -31,18 +32,16 @@ const (
 
 func run(data []byte) {
 
-	tiles := []tile{}
-
 	s := state_tile_id
 
 	var curTileID int
-	var curTile tile
+	var curTile *tile
 	for _, line := range bytes.Split(data, []byte{'\n'}) {
 		switch s {
 		case state_tile_id:
 			if bytes.HasPrefix(line, []byte("Tile ")) {
 				curTileID = convertToInt(line[5 : len(line)-1])
-				curTile = tile{id: curTileID}
+				curTile = &tile{id: curTileID}
 				s = state_tiles
 				continue
 			}
@@ -57,80 +56,89 @@ func run(data []byte) {
 		}
 	}
 
-	sideHash := map[string][]string{}
+	addEdge := func(e uint, t *tile) {
+		edges[e] = append(edges[e], t)
+		re := flipped(e)
+		if e != re {
+			edges[re] = append(edges[re], t)
+		}
+	}
 
 	for _, t := range tiles {
 		// Top row
-		toHash := make([]byte, t.size)
 		for i := 0; i < t.size; i++ {
-			toHash[i] = t.data[i]
+			t.n |= shifted(t.data[i], i)
 		}
-		h := hash(toHash)
-		sideHash[h] = append(sideHash[h], fmt.Sprintf("%d.top", t.id))
+		addEdge(t.n, t)
 
 		// Bottom row
-		toHash = make([]byte, t.size)
 		for i := 0; i < t.size; i++ {
 			j := (len(t.data) - t.size) + i
-			toHash[i] = t.data[j]
+			t.s |= shifted(t.data[j], i)
 		}
-		h = hash(toHash)
-		sideHash[h] = append(sideHash[h], fmt.Sprintf("%d.bottom", t.id))
+		addEdge(t.s, t)
 
 		// Left column
-		toHash = make([]byte, t.size)
 		for i := 0; i < t.size; i++ {
 			j := (t.size * i)
-			toHash[i] = t.data[j]
+			t.e |= shifted(t.data[j], i)
 		}
-		h = hash(toHash)
-		sideHash[h] = append(sideHash[h], fmt.Sprintf("%d.left", t.id))
+		addEdge(t.e, t)
 
 		// Right column
-		toHash = make([]byte, t.size)
 		for i := 0; i < t.size; i++ {
 			j := (t.size * i) + (t.size - 1)
-			toHash[i] = t.data[j]
+			t.w |= shifted(t.data[j], i)
 		}
-		h = hash(toHash)
-		sideHash[h] = append(sideHash[h], fmt.Sprintf("%d.right", t.id))
+		addEdge(t.w, t)
 	}
 
-	for h, tileIDs := range sideHash {
-		fmt.Println(h, len(tileIDs), tileIDs)
-		for _, tileID := range tileIDs {
-			tileIDMap[tileID] = append(tileIDMap[tileID], tileIDs...)
-		}
-	}
-
-	fmt.Println()
-	for tileID, tileIDs := range tileIDMap {
-		fmt.Println(tileID, tileIDs)
-	}
+	part1()
 }
 
-func hash(data []byte) string {
-	h := 1
-	mid := len(data) / 2
-	for i, c := range data {
-		b := 3
-		if c == '#' {
-			b = 5
+func part1() {
+	total := 1
+	for _, t := range tiles {
+		neighbours := map[int]bool{}
+		for _, dir := range []uint{t.n, t.s, t.e, t.w} {
+			for _, t1 := range edges[dir] {
+				if t.id != t1.id {
+					neighbours[t1.id] = true
+				}
+			}
+			for _, t1 := range edges[flipped(dir)] {
+				if t.id != t1.id {
+					neighbours[t1.id] = true
+				}
+			}
 		}
-
-		if i/mid == 0 {
-			h += b * i
-		} else {
-			h += b * ((len(data) - 1) - i)
+		if len(neighbours) == 2 {
+			total *= t.id
 		}
 	}
-	return strconv.Itoa(h)
+	fmt.Println("Part 1:", total)
+}
+
+func flipped(val uint) uint {
+	return bits.Reverse(val) >> 54
+}
+
+func shifted(c byte, i int) uint {
+	if c == '#' {
+		return 1 << (9 - i)
+	}
+	return 0
 }
 
 type tile struct {
 	id   int
 	data []byte
 	size int
+
+	n uint
+	e uint
+	s uint
+	w uint
 }
 
 func convertToInt(val []byte) int {
