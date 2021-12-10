@@ -26,7 +26,6 @@ func main() {
 	part1(test)
 	part1(p1)
 	part2(test)
-	part2(test2)
 	part2(p1)
 }
 
