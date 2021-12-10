@@ -1,0 +1,198 @@
+package main
+
+import (
+	"bytes"
+	"fmt"
+	"sort"
+
+	_ "embed"
+)
+
+var (
+	//go:embed test.txt
+	test []byte
+
+	//go:embed test1.txt
+	test1 []byte
+
+	//go:embed test2.txt
+	test2 []byte
+
+	//go:embed part1.txt
+	p1 []byte
+)
+
+func main() {
+	part1(test)
+	part1(p1)
+	//part2(test)
+	part2(test2)
+	// part2(p1)
+}
+
+func part1(data []byte) {
+	width, height := 0, 0
+	var heatmap [][]byte
+
+	for i, line := range bytes.Split(data, []byte{'\n'}) {
+		if len(line) == 0 {
+			continue
+		}
+		heatmap = append(heatmap, line)
+
+		if i == 0 {
+			width = len(line)
+		}
+		height++
+	}
+
+	lowPoints := []byte{}
+	for ri, row := range heatmap {
+		for pi, point := range row {
+
+			adjacentLowPoints := 0
+
+			// Check up
+			{
+				if ri == 0 || heatmap[ri-1][pi] > point {
+					adjacentLowPoints++
+				}
+			}
+
+			// Check down
+			{
+				if ri == height-1 || heatmap[ri+1][pi] > point {
+					adjacentLowPoints++
+				}
+			}
+
+			// Check left
+			{
+				if pi == 0 || heatmap[ri][pi-1] > point {
+					adjacentLowPoints++
+				}
+			}
+
+			// Check right
+			{
+				if pi == width-1 || heatmap[ri][pi+1] > point {
+					adjacentLowPoints++
+				}
+			}
+
+			if adjacentLowPoints == 4 {
+				lowPoints = append(lowPoints, point)
+				// fmt.Printf("LOW POINT: ri=%d pi=%d point=%c\n", ri, pi, point)
+			}
+		}
+	}
+
+	total := 0
+	for _, p := range lowPoints {
+		total += int((p - '0')) + 1
+	}
+
+	fmt.Printf("Part 1: %d adjacent points for total of %d\n", len(lowPoints), total)
+
+}
+
+type basin struct {
+	clumps map[int][][2]int
+}
+
+func part2(data []byte) {
+	found := map[int][][2]int{}
+	lines := 0
+	for li, line := range bytes.Split(data, []byte{'\n'}) {
+		if len(line) == 0 {
+			continue
+		}
+		start := -1
+		for i, point := range line {
+			if start != -1 && point == '9' {
+				found[li] = append(found[li], [2]int{start, i - 1})
+				start = -1
+			} else if start == -1 && point != '9' {
+				start = i
+			}
+		}
+		lines++
+		if start != -1 {
+			found[li] = append(found[li], [2]int{start, len(line) - 1})
+		}
+	}
+
+	basins := []*basin{}
+	findBasin := func(i int, r [2]int) *basin {
+		var b *basin
+		for _, b_ := range basins {
+			for _, clump := range b_.clumps[i-1] {
+				if inClump(r, clump) {
+					if b == nil {
+						b = b_
+					} else {
+						add := true
+						for _, c := range b.clumps[i-1] {
+							if c[0] == clump[0] && c[1] == clump[1] {
+								add = false
+							}
+						}
+						if add {
+							b.clumps[i-1] = append(b.clumps[i-1], clump)
+						}
+					}
+				}
+			}
+		}
+		if b != nil {
+			return b
+		}
+
+		b = &basin{make(map[int][][2]int)}
+		basins = append(basins, b)
+		return b
+	}
+
+	for i := 0; i < lines; i++ {
+		for _, clump := range found[i] {
+			b := findBasin(i, clump)
+			b.clumps[i] = append(b.clumps[i], clump)
+		}
+	}
+
+	totals := []int{}
+	for i, b := range basins {
+		total := 0
+		fmt.Printf("basin %d\n", i)
+		for row, clumps := range b.clumps {
+			fmt.Printf(">> %d: %v\n", row, clumps)
+			_ = row
+			_ = i
+			for _, clump := range clumps {
+				total += (clump[1] + 1) - clump[0]
+			}
+		}
+		totals = append(totals, total)
+	}
+
+	sort.Sort(sort.Reverse(sort.IntSlice(totals)))
+
+	total := 1
+	for _, t := range totals[:3] {
+		total *= t
+	}
+	fmt.Printf("Part 2: largest=%v sum=%d\n", totals[:3], total)
+}
+
+func inClump(a, b [2]int) bool {
+	fmt.Println(a, b)
+	// Dumb, but can't work out elegant solution
+	for ai := a[0]; ai <= a[1]; ai++ {
+		for bi := b[0]; bi <= b[1]; bi++ {
+			if ai == bi {
+				return true
+			}
+		}
+	}
+	return false
+}
