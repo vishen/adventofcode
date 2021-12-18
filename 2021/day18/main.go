@@ -4,7 +4,6 @@ import (
 	"bytes"
 	_ "embed"
 	"fmt"
-	"sort"
 	"strconv"
 )
 
@@ -33,22 +32,10 @@ func part1(data []byte) {
 		if cur == nil {
 			cur = tokens(line)
 		} else {
-			// [1,2] + [[3,4],5] becomes [[1,2],[[3,4],5]]
 			toks := tokens(line)
-			n := []token{{typ: "["}}
-			n = append(n, cur...)
-			n = append(n, token{typ: ","})
-			n = append(n, toks...)
-			cur = append(n, token{typ: "]"})
+			cur = add(cur, toks)
 		}
-
-		for r := 0; ; r++ {
-			p := len(cur)
-			cur = reduce(cur)
-			if p == len(cur) {
-				break
-			}
-		}
+		cur = reduce(cur)
 	}
 
 	root := toNum(cur)
@@ -57,7 +44,6 @@ func part1(data []byte) {
 }
 
 func part2(data []byte) {
-	magnitudes := []int{}
 	numbers := [][]token{}
 	for _, line := range bytes.Split(data, []byte{'\n'}) {
 		if len(line) == 0 {
@@ -66,49 +52,36 @@ func part2(data []byte) {
 		numbers = append(numbers, tokens(line))
 	}
 
-	for _, toks := range numbers {
-		for _, otoks := range numbers {
+	mag := 0
+	for i, toks := range numbers {
+		for _, otoks := range numbers[i:] {
 			{
-				n := []token{{typ: "["}}
-				n = append(n, otoks...)
-				n = append(n, token{typ: ","})
-				n = append(n, toks...)
-				ncur := append(n, token{typ: "]"})
-
-				for r := 0; ; r++ {
-					p := len(ncur)
-					ncur = reduce(ncur)
-					if p == len(ncur) {
-						break
-					}
-				}
-
+				ncur := reduce(add(otoks, toks))
 				m := magnitude(toNum(ncur))
-				magnitudes = append(magnitudes, m)
+				if m > mag {
+					mag = m
+				}
 			}
 			{
-				n := []token{{typ: "["}}
-				n = append(n, toks...)
-				n = append(n, token{typ: ","})
-				n = append(n, otoks...)
-				ncur := append(n, token{typ: "]"})
-
-				for r := 0; ; r++ {
-					p := len(ncur)
-					ncur = reduce(ncur)
-					if p == len(ncur) {
-						break
-					}
-				}
-
+				ncur := reduce(add(toks, otoks))
 				m := magnitude(toNum(ncur))
-				magnitudes = append(magnitudes, m)
+				if m > mag {
+					mag = m
+				}
 			}
 		}
 	}
 
-	sort.Ints(magnitudes)
-	fmt.Printf("Part 2: largest magnitude %d\n", magnitudes[len(magnitudes)-1])
+	fmt.Printf("Part 2: largest magnitude %d\n", mag)
+}
+
+func add(t1, t2 []token) []token {
+	// [1,2] + [[3,4],5] becomes [[1,2],[[3,4],5]]
+	n := []token{{typ: "["}}
+	n = append(n, t1...)
+	n = append(n, token{typ: ","})
+	n = append(n, t2...)
+	return append(n, token{typ: "]"})
 }
 
 func magnitude(root *num) int {
@@ -207,6 +180,17 @@ func ptokens(toks []token) {
 }
 
 func reduce(toks []token) []token {
+	for r := 0; ; r++ {
+		p := len(toks)
+		toks = reduce_(toks)
+		if p == len(toks) {
+			break
+		}
+	}
+	return toks
+}
+
+func reduce_(toks []token) []token {
 	depth := 0
 	found10 := 0
 	for i, tok := range toks {
