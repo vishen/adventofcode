@@ -4,7 +4,6 @@ import (
 	"bytes"
 	_ "embed"
 	"fmt"
-	"strconv"
 )
 
 var (
@@ -38,8 +37,7 @@ func part1(data []byte) {
 		cur = reduce(cur)
 	}
 
-	root := toNum(cur)
-	m := magnitude(root)
+	m, _ := magnitude(cur)
 	fmt.Printf("Part 1: magnitude %d\n", m)
 }
 
@@ -57,15 +55,13 @@ func part2(data []byte) {
 		for _, otoks := range numbers[i:] {
 			{
 				ncur := reduce(add(otoks, toks))
-				m := magnitude(toNum(ncur))
-				if m > mag {
+				if m, _ := magnitude(ncur); m > mag {
 					mag = m
 				}
 			}
 			{
 				ncur := reduce(add(toks, otoks))
-				m := magnitude(toNum(ncur))
-				if m > mag {
+				if m, _ := magnitude(ncur); m > mag {
 					mag = m
 				}
 			}
@@ -75,6 +71,33 @@ func part2(data []byte) {
 	fmt.Printf("Part 2: largest magnitude %d\n", mag)
 }
 
+func magnitude(toks []token) (int, int) {
+	i := 0
+	total := 0
+	for {
+		if i >= len(toks) {
+			panic("should not get here")
+		}
+		tok := toks[i]
+		switch tok.typ {
+		case "[":
+			val, ni := magnitude(toks[i+1:])
+			total += val * 3
+
+			val, nni := magnitude(toks[i+ni+1:])
+			total += val * 2
+			i += ni + nni + 1
+			return total, i
+		case "]", ",":
+			// do nothing
+		case "LIT":
+			return tok.val, i + 1
+		}
+		i++
+	}
+	return total, -1
+}
+
 func add(t1, t2 []token) []token {
 	// [1,2] + [[3,4],5] becomes [[1,2],[[3,4],5]]
 	n := []token{{typ: "["}}
@@ -82,89 +105,6 @@ func add(t1, t2 []token) []token {
 	n = append(n, token{typ: ","})
 	n = append(n, t2...)
 	return append(n, token{typ: "]"})
-}
-
-func magnitude(root *num) int {
-	// [9,1] is 3*9 + 2*1 = 29
-	// [1,9] is 3*1 + 2*9 = 21
-	// [[9,1],[1,9]] is 3*29 + 2*21 = 129
-	// [[4, [9,1]],[1,9]]
-	total := 0
-	mul := 3
-	for _, p := range root.pairs {
-		val := p.val
-		if p.child != nil {
-			val = magnitude(p.child)
-		}
-		if root.parent == nil {
-			return val
-		}
-		total += val * mul
-		mul = 2
-	}
-	return total
-}
-
-type pair struct {
-	val   int
-	child *num
-}
-
-type num struct {
-	parent *num
-	pairs  []pair
-	depth  int
-}
-
-func (n *num) addValue(val int) {
-	n.pairs = append(n.pairs, pair{val: val})
-}
-
-func (n *num) addChild(c *num) {
-	n.pairs = append(n.pairs, pair{child: c})
-}
-
-func toNum(toks []token) *num {
-	root := &num{}
-	cur := root
-
-	for _, tok := range toks {
-		switch tok.typ {
-		case "[":
-			n := &num{}
-			n.parent = cur
-			cur.addChild(n)
-			cur = n
-		case "]":
-			cur = cur.parent
-		case "LIT":
-			cur.addValue(tok.val)
-		}
-	}
-	return root
-}
-
-func printNum(n *num, depth int) []byte {
-	for d := 0; d < depth; d++ {
-		fmt.Print("*")
-	}
-	fmt.Printf(" %p) depth=%d parent=%p, pairs=%v\n", n, depth, n.parent, n.pairs)
-	line := []byte{'['}
-	for i, p := range n.pairs {
-		if p.child != nil {
-			line = append(line, printNum(p.child, depth+1)...)
-		} else {
-			line = append(line, []byte(strconv.Itoa(p.val))...)
-		}
-		if i == 0 {
-			line = append(line, ',')
-		}
-	}
-	line = append(line, ']')
-	if depth == 0 {
-		fmt.Printf("LINE: %s\n", line)
-	}
-	return line
 }
 
 func ptokens(toks []token) {
