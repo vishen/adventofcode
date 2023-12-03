@@ -4,10 +4,12 @@ File :: #import "File";
 Line :: struct {
 	data: []u8;
 	end: *u8;
+	cur: int;
 }
 
 advance :: (line: *Line, amount := 1) {
 	line.data.data += amount;
+	line.cur += amount;
 }
 
 is_at_end :: (line: Line) -> bool {
@@ -19,6 +21,7 @@ next_int :: (line: *Line) -> (value: int) {
 
 	value := 0;
 	while true {
+		if is_at_end(line) break;
 		if !is_digit(line.data.data[0])  break;
 
 		value *= 10;
