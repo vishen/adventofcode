@@ -1,6 +1,7 @@
 Basic :: #import "Basic";
 File :: #import "File";
 String :: #import "String";
+Hash_Table :: #import "Hash_Table";
 
 main :: () {
 	//part1();
@@ -25,13 +26,15 @@ part1 :: () {
 		groups: [..]int;
 		for String.split(input_and_groups[1], ",")  Basic.array_add(*groups, to_int(it));
 
-		perms := permutations(input, groups);
+		count := permutations(input, 0, groups);
+		/*
 		count := 0;
 		for perms  {
 			if is_valid(it, groups)  count += 1;
 		}
+		*/
 		//Basic.print("%: %, count=% perms.count=%\n", it_index, to_string(input), count, perms.count);
-		Basic.print("%: %\n", it_index, perms.count);
+		Basic.print("%: %\n", it_index, count);
 		total += count;
 		// break;
 	}
@@ -40,7 +43,7 @@ part1 :: () {
 }
 
 part2 :: () {
-	data, success := File.read_entire_file("input");
+	data, success := File.read_entire_file("test");
 	Basic.assert(success);
 
 	total := 0;
@@ -70,16 +73,9 @@ part2 :: () {
 		//Basic.print("expanded_input=%\n", to_string(expanded_input));
 		//Basic.print("expanded_groups=%\n", expanded_groups);
 
-		perms := permutations(expanded_input, expanded_groups);
-		Basic.print("%: %\n", it_index, perms.count);
-		count := 0;
-		for perms  {
-			if is_valid(it, expanded_groups)  count += 1;
-		}
-		//Basic.print("%: %, count=% perms.count=%\n", it_index, to_string(input), count, perms.count);
-		Basic.print("count=%\n", count);
+		count := permutations(expanded_input, 0, expanded_groups);
+		Basic.print("%: %\n", it_index, count);
 		total += count;
-		// break;
 	}
 
 	Basic.print("%\n", total);
@@ -92,22 +88,20 @@ to_string :: (v: []u8) -> string {
 	return s;
 }
 
-permutations_ran := 0;
+permutations :: (input: []u8, cur: int, groups: [..]int, g: int, depth := 0) -> int {
+	total := 0;
 
-permutations :: (input: []u8, groups: [..]int, depth := 0) -> [..][]u8 {
-	permutations_ran += 1;
-
-	perms: [..][]u8;
 	q := -1;
-	for input {
-		if it == #char "?" {
-			q = it_index;
+	for cur..input.count-1 {
+		ch := input[cur];
+		if ch == #char "?" {
+			q = it;
 			break;
 		}
+		cur += 1;
 	}
-	if q == -1 {
-		Basic.array_add(*perms, input);
-		return perms;
+	if q == -1  {
+		return ifx is_valid(input, groups) then 1 else 0;
 	}
 
 	{
@@ -117,10 +111,10 @@ permutations :: (input: []u8, groups: [..]int, depth := 0) -> [..][]u8 {
 		hg := hash_groups(i);
 		defer Basic.free(hg.data);
 
-		if hg.count > groups.count  return perms;
+		if hg.count > groups.count  return 0;
 		for hg  {
-			if it > groups[it_index]  return perms;
-			if it_index < hg.count-1 && it < groups[it_index]  return perms;
+			if it > groups[it_index]  return 0;
+			if it_index < hg.count-1 && it < groups[it_index]  return 0;
 		}
 
 		//Basic.print("$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$\n");
@@ -128,13 +122,14 @@ permutations :: (input: []u8, groups: [..]int, depth := 0) -> [..][]u8 {
 	}
 
 	for u8.[#char "#", #char "."] {
+		// Basic.print("%, %\n", input.count, q);
 		i := Basic.array_copy(input);
 		i[q] = it;
-		Basic.array_add(*perms, .. permutations(i, groups, depth+1));
+		total += permutations(i, q+1, groups, depth+1);
 		//defer Basic.free(i.data);
 	}
 
-	return perms;
+	return total;
 }
 
 /*
