@@ -30,9 +30,9 @@ part1 :: () {
 	add :: (grid: [..][..]u8, cs: *[..]Crucible, c: Crucible, next_dir: Dir, seen: *[..]Crucible) {
 
 		if c.dir == NORTH && next_dir == SOUTH  return;
-		if c.dir == SOUTH && next_dir == NORTH  return;
-		if c.dir == EAST && next_dir == WEST  return;
-		if c.dir == WEST && next_dir == EAST  return;
+		else if c.dir == SOUTH && next_dir == NORTH  return;
+		else if c.dir == EAST && next_dir == WEST  return;
+		else if c.dir == WEST && next_dir == EAST  return;
 
 		nc := c;
 		nc.pos.Y += next_dir.Y;
