@@ -3,6 +3,7 @@ package main
 import (
 	_ "embed"
 	"fmt"
+	"math/bits"
 	"sort"
 	"strconv"
 	"strings"
@@ -114,6 +115,24 @@ func run(steps []step, values map[string]bool, finals []string) []bool {
 	return result
 }
 
+/*
+NOTE: This doesn't solve it automatically, but only gives the place the error occurs.
+
+The main thing to look for is that we're expecting an:
+
+	<z_output> = <input> XOR <input>
+	  <output> = <x_input_same_number_as_z_output> XOR <y_input_same_number_as_z_output>
+	  <output> = <input> OR <input>
+	    <output> = <x_input_for_previous_z> AND <y_input_for_previous_z>
+
+eg:
+
+	  z29 = qdw XOR mhh
+		qdw = jbf OR bmh
+		  jbf = jsd AND kbc
+		  bmh = y28 AND x28
+		mhh = x29 XOR y29
+*/
 func part2(data string) {
 	parts := strings.Split(strings.TrimSpace(data), "\n\n")
 
@@ -144,16 +163,33 @@ func part2(data string) {
 			y |= 1 << i
 		}
 	}
-	fmt.Println(strconv.FormatInt(int64(x+y), 2))
+	expected := x + y
 
-	deps := map[string]step{}
 	var finals []string
 	var steps []step
+	deps := map[string]step{}
+
+	swaps := map[string]string{
+		"z05": "hdt",
+		"z09": "gbf",
+		"jgt": "mht",
+		"z30": "nbf",
+	}
 
 	for _, line := range strings.Split(parts[1], "\n") {
 		inputsOutput := strings.Split(line, " -> ")
 		inputs := strings.Split(inputsOutput[0], " ")
 		output := inputsOutput[1]
+
+		for s1, s2 := range swaps {
+			switch output {
+			case s1:
+				output = s2
+			case s2:
+				output = s1
+			}
+		}
+
 		s := step{inputs, output, false}
 		steps = append(steps, s)
 		deps[output] = s
@@ -162,70 +198,72 @@ func part2(data string) {
 		}
 	}
 
-	/*
-		results := run(steps, values, finals)
-		z := 0
-		for i, r := range results {
-			if r {
-				z |= 1 << i
-			}
-		}
-		fmt.Println(strconv.FormatInt(int64(z), 2))
-	*/
-
-	var run func(string) []step
-	run = func(cur string) []step {
-		s := deps[cur]
-
-		if len(s.inputs) > 0 {
-			switch s.inputs[0][0] {
-			case 'x', 'y':
-				return []step{s}
-			}
-		}
-		var found []step
-		for _, i := range s.inputs {
-			found = append(found, run(i)...)
-		}
-		return found
-	}
-
-	sort.Slice(finals, func(i, j int) bool {
-		return finals[i] < finals[j]
-	})
-
 	seen := map[string]bool{}
-	_ = seen
-	for _, f := range finals[:7] {
-		inputs := run(f)
-		// fmt.Println(f, x, y)
-		sort.Slice(inputs, func(i, j int) bool {
-			v1, _ := strconv.Atoi(string(inputs[i].inputs[0][1:]))
-			v2, _ := strconv.Atoi(string(inputs[j].inputs[0][1:]))
-			if v1 == v2 {
-				return inputs[i].inputs[1] < inputs[j].inputs[1]
-			}
-			return v1 > v2
-		})
-		// fmt.Println(f, inputs)
-		fmt.Println("---------------------")
-		fmt.Println(f)
-		for _, i := range inputs {
-			if seen[i.output] {
-				continue
-			}
-			fmt.Printf("%v || ", i)
-			seen[i.output] = true
+	var eval func(string, int)
+	results := run(steps, values, finals)
+	z := 0
+	for i, r := range results {
+		if r {
+			z |= 1 << i
 		}
-		fmt.Println()
-		fmt.Println(len(inputs), inputs)
-		/*
-			for ii, i := range inputs {
-				if ii > 1 {
-					break
-				}
-				fmt.Println("> ", i)
-			}
-		*/
 	}
+
+	if expected == z {
+		var codes []string
+		for s1, s2 := range swaps {
+			codes = append(codes, s1, s2)
+		}
+		sort.Strings(codes)
+		fmt.Println(strings.Join(codes, ","))
+		return
+	}
+
+	diff := z ^ expected
+	fmt.Println("EXPECTED", strconv.FormatInt(int64(expected), 2))
+	fmt.Println("ACTUAL  ", strconv.FormatInt(int64(z), 2))
+	fmt.Println("DIFF    ", strconv.FormatInt(int64(diff), 2))
+
+	eval = func(cur string, depth int) {
+		s := deps[cur]
+		ns := s
+		if s.output == "" {
+			return
+		}
+		line := fmt.Sprintf("%s = %s", s.output, strings.Join(s.inputs, " "))
+		if _, ok := seen[line]; !ok {
+			for d := 0; d < depth; d++ {
+				fmt.Print(" ")
+			}
+			fmt.Println(line)
+		}
+		// sort.Strings(ns.inputs)
+		seen[line] = true
+		for _, i := range ns.inputs {
+			eval(i, depth+1)
+		}
+	}
+
+	pos := bits.TrailingZeros(uint(diff))
+	for i := pos - 3; i < pos+3; i++ {
+		zs := "z"
+		if i < 10 {
+			zs += "0" + strconv.Itoa(i)
+		} else {
+			zs += strconv.Itoa(i)
+		}
+		if i == pos {
+			fmt.Println()
+			fmt.Println("####-------WRONG-------------####")
+			fmt.Println()
+		}
+		eval(zs, 0)
+		if i == pos {
+			fmt.Println()
+			fmt.Println("################################")
+			fmt.Println()
+		} else {
+			fmt.Println("----------------")
+		}
+	}
+
 }
